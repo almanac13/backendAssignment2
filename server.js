@@ -1,22 +1,30 @@
 require('dotenv').config()
 const express = require('express')
-const axios = require('axios')
 const path = require('path')
 
 const app = express()
 const PORT = 3000
 
 app.use(express.static('public'))
+
 app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'views', 'index.html'))
 })
 
 app.get('/api/get-user', async (req, res) => {
 	try {
-		const userRes = await axios.get('https://randomuser.me/api/')
-		const userData = userRes.data.results[0]
+		// -------------------------
+		// 1. Fetch Random User
+		// -------------------------
+		const userRes = await fetch('https://randomuser.me/api/')
+		if (!userRes.ok) throw new Error('Random User API failed')
+		const userJson = await userRes.json()
+		const userData = userJson.results[0]
 		const userCountry = userData.location.country
 
+		// -------------------------
+		// 2. Initialize default values
+		// -------------------------
 		let countryDetails = {
 			capital: 'N/A',
 			languages: 'N/A',
@@ -24,60 +32,70 @@ app.get('/api/get-user', async (req, res) => {
 			flag: '',
 		}
 		let currencyCode = 'USD'
-		let countryCodeISO = 'us'
 		let articles = []
 		let usdRate = 0
 		let kztRate = 0
 
+		// -------------------------
+		// 3. Fetch Country Details
+		// -------------------------
 		try {
-			const countryRes = await axios.get(
+			const countryRes = await fetch(
 				`https://restcountries.com/v3.1/name/${encodeURIComponent(
 					userCountry
 				)}?fullText=true`
 			)
-			if (countryRes.data && countryRes.data.length > 0) {
-				const c = countryRes.data[0]
+			if (countryRes.ok) {
+				const countryJson = await countryRes.json()
+				if (countryJson.length > 0) {
+					const c = countryJson[0]
+					currencyCode = Object.keys(c.currencies || { USD: {} })[0]
 
-				countryCodeISO = 'us'
-				currencyCode = Object.keys(c.currencies)[0]
-
-				countryDetails = {
-					capital: c.capital ? c.capital[0] : 'N/A',
-					languages: c.languages
-						? Object.values(c.languages).join(', ')
-						: 'N/A',
-					currency: c.currencies ? c.currencies[currencyCode].name : 'N/A',
-					flag: c.flags ? c.flags.png : '',
+					countryDetails = {
+						capital: c.capital ? c.capital[0] : 'N/A',
+						languages: c.languages
+							? Object.values(c.languages).join(', ')
+							: 'N/A',
+						currency: c.currencies ? c.currencies[currencyCode].name : 'N/A',
+						flag: c.flags ? c.flags.png : '',
+					}
 				}
 			}
 		} catch (e) {
 			console.error('Country API Error:', e.message)
 		}
 
+		// -------------------------
+		// 4. Fetch Exchange Rates
+		// -------------------------
 		try {
-			const exchangeRes = await axios.get(
+			const exchangeRes = await fetch(
 				`https://v6.exchangerate-api.com/v6/${process.env.CURRENCY_KEY}/latest/${currencyCode}`
 			)
-			const rates = exchangeRes.data.conversion_rates
-			usdRate = rates['USD'] || 0
-			kztRate = rates['KZT'] || 0
+			if (exchangeRes.ok) {
+				const exchangeJson = await exchangeRes.json()
+				const rates = exchangeJson.conversion_rates || {}
+				usdRate = rates['USD'] || 0
+				kztRate = rates['KZT'] || 0
+			}
 		} catch (e) {
 			console.error('Exchange API Error:', e.message)
 		}
 
+		// -------------------------
+		// 5. Fetch News
+		// -------------------------
 		try {
-			const newsKey = process.env.NEWS_KEY
-			const newsRes = await axios.get(
-				`https://newsapi.org/v2/everything?q=${encodeURIComponent(
-					userCountry
-				)}&language=en&pageSize=5&sortBy=relevancy&apiKey=${newsKey}`,
-				{
-					headers: { 'User-Agent': 'NodeJS-App' },
-				}
-			)
+			const newsUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+				userCountry
+			)}&language=en&pageSize=5&sortBy=relevancy&apiKey=${process.env.NEWS_KEY}`
 
-			if (newsRes.data.articles) {
-				articles = newsRes.data.articles.slice(0, 5).map(art => ({
+			const newsRes = await fetch(newsUrl, {
+				headers: { 'User-Agent': 'NodeJS-App' },
+			})
+			if (newsRes.ok) {
+				const newsJson = await newsRes.json()
+				articles = (newsJson.articles || []).slice(0, 5).map(art => ({
 					title: art.title,
 					description: art.description || 'No description available',
 					url: art.url,
@@ -87,12 +105,12 @@ app.get('/api/get-user', async (req, res) => {
 				}))
 			}
 		} catch (e) {
-			console.error(
-				'News API Error Details:',
-				e.response ? e.response.data : e.message
-			)
+			console.error('News API Error:', e.message)
 		}
 
+		// -------------------------
+		// 6. Combine Data
+		// -------------------------
 		const combinedData = {
 			firstName: userData.name.first,
 			lastName: userData.name.last,

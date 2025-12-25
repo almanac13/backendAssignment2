@@ -2,7 +2,8 @@ const btn = document.getElementById('get-user-btn')
 const displayArea = document.getElementById('user-card-container')
 
 btn.addEventListener('click', async () => {
-	displayArea.innerHTML = '<p class="loading">Fetching data from server...</p>'
+	displayArea.innerHTML =
+		'<p class="loading">Collecting data from server...</p>'
 
 	try {
 		const response = await fetch('/api/get-user')
