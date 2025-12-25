@@ -20,9 +20,9 @@ app.get('/api/get-user', async (req, res) => {
 		const userCountry = userData.location.country
 
 		let countryDetails = {
-			capital: 'N/A',
-			languages: 'N/A',
-			currency: 'N/A',
+			capital: '',
+			languages: '',
+			currency: '',
 			flag: '',
 		}
 		let currencyCode = 'USD'
