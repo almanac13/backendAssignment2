@@ -13,18 +13,12 @@ app.get('/', (req, res) => {
 
 app.get('/api/get-user', async (req, res) => {
 	try {
-		// -------------------------
-		// 1. Fetch Random User
-		// -------------------------
 		const userRes = await fetch('https://randomuser.me/api/')
 		if (!userRes.ok) throw new Error('Random User API failed')
 		const userJson = await userRes.json()
 		const userData = userJson.results[0]
 		const userCountry = userData.location.country
 
-		// -------------------------
-		// 2. Initialize default values
-		// -------------------------
 		let countryDetails = {
 			capital: 'N/A',
 			languages: 'N/A',
@@ -36,9 +30,6 @@ app.get('/api/get-user', async (req, res) => {
 		let usdRate = 0
 		let kztRate = 0
 
-		// -------------------------
-		// 3. Fetch Country Details
-		// -------------------------
 		try {
 			const countryRes = await fetch(
 				`https://restcountries.com/v3.1/name/${encodeURIComponent(
@@ -65,9 +56,6 @@ app.get('/api/get-user', async (req, res) => {
 			console.error('Country API Error:', e.message)
 		}
 
-		// -------------------------
-		// 4. Fetch Exchange Rates
-		// -------------------------
 		try {
 			const exchangeRes = await fetch(
 				`https://v6.exchangerate-api.com/v6/${process.env.CURRENCY_KEY}/latest/${currencyCode}`
@@ -82,9 +70,6 @@ app.get('/api/get-user', async (req, res) => {
 			console.error('Exchange API Error:', e.message)
 		}
 
-		// -------------------------
-		// 5. Fetch News
-		// -------------------------
 		try {
 			const newsUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
 				userCountry
@@ -108,9 +93,6 @@ app.get('/api/get-user', async (req, res) => {
 			console.error('News API Error:', e.message)
 		}
 
-		// -------------------------
-		// 6. Combine Data
-		// -------------------------
 		const combinedData = {
 			firstName: userData.name.first,
 			lastName: userData.name.last,
